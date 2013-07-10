@@ -1,0 +1,840 @@
+diff -crB /home/lacsc/Téléchargements/Californium-coap-13/californium/src/main/java/ch/ethz/inf/vs/californium/coap/Message.java ./java/ch/ethz/inf/vs/californium/coap/Message.java
+*** /home/lacsc/Téléchargements/Californium-coap-13/californium/src/main/java/ch/ethz/inf/vs/californium/coap/Message.java	2013-02-22 18:10:09.000000000 +0100
+--- ./java/ch/ethz/inf/vs/californium/coap/Message.java	2013-04-24 11:53:04.000000000 +0200
+***************
+*** 78,83 ****
+--- 78,86 ----
+  	
+  	/** number of bits used for the encoding of the token length field */
+  	public static final int TOKEN_LENGTH_BITS = 4;
++ 	
++ 	/** number of bits used for the encoding of the option count (OC) field */
++ 	public static final int OPTION_COUNT_BITS = 4;
+  
+  	/** number of bits used for the encoding of the request method/response code field */
+  	public static final int CODE_BITS = 8;
+***************
+*** 175,181 ****
+  		messageType type = getTypeByValue(datagram.read(TYPE_BITS));
+  		
+  		// read token length
+! 		int tokenLength = datagram.read(TOKEN_LENGTH_BITS);
+  
+  		// create new message with subtype according to code number
+  		Message msg = CodeRegistry.getMessageSubClass(datagram.read(CODE_BITS));
+--- 178,187 ----
+  		messageType type = getTypeByValue(datagram.read(TYPE_BITS));
+  		
+  		// read token length
+! 		//int tokenLength = datagram.read(TOKEN_LENGTH_BITS);
+! 		
+! 		// read option count
+! 		int optionCount = datagram.read(OPTION_COUNT_BITS);
+  
+  		// create new message with subtype according to code number
+  		Message msg = CodeRegistry.getMessageSubClass(datagram.read(CODE_BITS));
+***************
+*** 186,200 ****
+  		msg.messageID = datagram.read(ID_BITS);
+  		
+  		// read token
+! 		if (tokenLength > 0) {
+  			msg.setToken(datagram.readBytes(tokenLength));
+  		} else {
+  			// incoming message already have a token, including implicit empty token
+  			msg.requiresToken = false;
+  		}
+  		
+! 		// initialize empty payload in case when no payload available
+  		msg.payload = new byte[0];
+  		
+  		int currentOption = 0;
+  		while (datagram.bytesAvailable()) {
+--- 192,239 ----
+  		msg.messageID = datagram.read(ID_BITS);
+  		
+  		// read token
+! 		/*if (tokenLength > 0) {
+  			msg.setToken(datagram.readBytes(tokenLength));
+  		} else {
+  			// incoming message already have a token, including implicit empty token
+  			msg.requiresToken = false;
++ 		}*/
++ 		
++ 		// read options
++ 		if (optionCount > 0) {
++ 			int optionIndex = 0;
++ 			int optionNumber = 0;
++ 			int optionLength = 0;
++ 			while (optionIndex < optionCount) {
++ 				// Read option number and length
++ 				optionNumber += datagram.read(OPTION_DELTA_BITS);
++ 				optionLength = datagram.read(OPTION_LENGTH_BITS);
++ 				
++ 				// Read extended option length if any
++ 				if (optionLength == 15) {
++ 					optionLength += datagram.read(8);
++ 				}
++ 				
++ 				// Set the acquired option
++ 				// if blockOption ...
++ 				//msg.setOption(new Option(datagram.readBytes(optionLength), optionNumber));
++ 				Option retOpt = Option.fromNumber(optionNumber);
++ 				retOpt.setValue(datagram.readBytes(optionLength));
++ 				msg.setOption(retOpt);
++ 				optionIndex++;
++ 				
++ 			}
+  		}
+  		
+! 		// read payload if any
+  		msg.payload = new byte[0];
++ 		if (datagram.bytesAvailable()) {
++ 			msg.payload = datagram.readBytesLeft();
++ 		}
++ 		
++ 		
++ 		// initialize empty payload in case when no payload available
++ 		/*msg.payload = new byte[0];
+  		
+  		int currentOption = 0;
+  		while (datagram.bytesAvailable()) {
+***************
+*** 224,230 ****
+  				msg.addOption(opt);
+  				
+  			}
+! 		}
+  
+  		return msg;
+  	}
+--- 263,269 ----
+  				msg.addOption(opt);
+  				
+  			}
+! 		}*/
+  
+  		return msg;
+  	}
+***************
+*** 1223,1229 ****
+  
+  	/**
+  	 * Encodes the message into its raw binary representation as specified in
+! 	 * draft-ietf-core-coap-13, section 3
+  	 * 
+  	 * @return A byte array containing the CoAP encoding of the message
+  	 * 
+--- 1262,1268 ----
+  
+  	/**
+  	 * Encodes the message into its raw binary representation as specified in
+! 	 * draft-ietf-core-coap-08, section 3
+  	 * 
+  	 * @return A byte array containing the CoAP encoding of the message
+  	 * 
+***************
+*** 1236,1247 ****
+  		// write fixed-size CoAP header
+  		writer.write(version, VERSION_BITS);
+  		writer.write(type.ordinal(), TYPE_BITS);
+! 		writer.write(getToken().length, TOKEN_LENGTH_BITS);
+  		writer.write(code, CODE_BITS);
+  		writer.write(messageID, ID_BITS);
+  		
+  		// write token, which may be 0 to 8 bytes, given by token length field
+! 		writer.writeBytes(getToken());
+  
+  		// write options
+  		int lastOptionNumber = 0;
+--- 1275,1288 ----
+  		// write fixed-size CoAP header
+  		writer.write(version, VERSION_BITS);
+  		writer.write(type.ordinal(), TYPE_BITS);
+! 		//writer.write(getToken().length, TOKEN_LENGTH_BITS);
+! 		writer.write(getOptions().size(), OPTION_COUNT_BITS);
+  		writer.write(code, CODE_BITS);
+  		writer.write(messageID, ID_BITS);
+  		
++ 		// NM ; write options instead, tokens are seen like options in CoAP-08
+  		// write token, which may be 0 to 8 bytes, given by token length field
+! 		//writer.writeBytes(getToken());
+  
+  		// write options
+  		int lastOptionNumber = 0;
+***************
+*** 1258,1280 ****
+  			int optionDeltaNibble = getOptionNibble(optionDelta);
+  			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
+  			
+  			// write 4-bit option length
+  			int optionLength = opt.getLength();
+  			int optionLengthNibble = getOptionNibble(optionLength);
+  			writer.write(optionLengthNibble, OPTION_LENGTH_BITS);
+  			
+  			// write extended option delta field (0 - 2 bytes)
+! 			if (optionDeltaNibble == 13) {
+  				writer.write(optionDelta - 13, 8);
+  			} else if (optionDeltaNibble == 14) {
+  				writer.write(optionDelta - 269, 16);
+! 			}
+  			
+  			// write extended option length field (0 - 2 bytes)
+! 			if (optionLengthNibble == 13) {
+  				writer.write(optionLength - 13, 8);
+  			} else if (optionLengthNibble == 14) {
+  				writer.write(optionLength - 269, 16);
+  			}
+  
+  			// write option value
+--- 1299,1329 ----
+  			int optionDeltaNibble = getOptionNibble(optionDelta);
+  			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
+  			
++ 			/*System.out.println("Last Option Number: " + lastOptionNumber);
++ 			System.out.println("Option Number: " + opt.getOptionNumber());
++ 			System.out.println("Option Delta: " + optionDelta);*/
++ 			
+  			// write 4-bit option length
+  			int optionLength = opt.getLength();
+  			int optionLengthNibble = getOptionNibble(optionLength);
+  			writer.write(optionLengthNibble, OPTION_LENGTH_BITS);
+  			
++ 			// No extended option delta field in CoAP-08
+  			// write extended option delta field (0 - 2 bytes)
+! 			/*if (optionDeltaNibble == 13) {
+  				writer.write(optionDelta - 13, 8);
+  			} else if (optionDeltaNibble == 14) {
+  				writer.write(optionDelta - 269, 16);
+! 			}*/
+  			
+  			// write extended option length field (0 - 2 bytes)
+! 			/*if (optionLengthNibble == 13) {
+  				writer.write(optionLength - 13, 8);
+  			} else if (optionLengthNibble == 14) {
+  				writer.write(optionLength - 269, 16);
++ 			}*/
++ 			if (optionLengthNibble == 15) {
++ 				writer.write(optionLength - 15, 8);
+  			}
+  
+  			// write option value
+***************
+*** 1284,1295 ****
+  			lastOptionNumber = opt.getOptionNumber();
+  		}
+  		
+! 		if (payload != null && payload.length > 0) {
+  			// if payload is present and of non-zero length, it is prefixed by
+  			// an one-byte Payload Marker (0xFF) which indicates the end of
+  			// options and the start of the payload
+  			writer.writeByte(PAYLOAD_MARKER);
+! 		}
+  		
+  		// write payload
+  		writer.writeBytes(payload);
+--- 1333,1345 ----
+  			lastOptionNumber = opt.getOptionNumber();
+  		}
+  		
+! 		// No payload marker delta field in CoAP-08
+! 		/*if (payload != null && payload.length > 0) {
+  			// if payload is present and of non-zero length, it is prefixed by
+  			// an one-byte Payload Marker (0xFF) which indicates the end of
+  			// options and the start of the payload
+  			writer.writeByte(PAYLOAD_MARKER);
+! 		}*/
+  		
+  		// write payload
+  		writer.writeBytes(payload);
+***************
+*** 1375,1378 ****
+  	public enum messageType {
+  		CON, NON, ACK, RST
+  	}
+! }
+\ Pas de fin de ligne à la fin du fichier
+--- 1425,1428 ----
+  	public enum messageType {
+  		CON, NON, ACK, RST
+  	}
+! }
+diff -crB /home/lacsc/Téléchargements/Californium-coap-13/californium/src/main/java/ch/ethz/inf/vs/californium/coap/registries/OptionNumberRegistry.java ./java/ch/ethz/inf/vs/californium/coap/registries/OptionNumberRegistry.java
+*** /home/lacsc/Téléchargements/Californium-coap-13/californium/src/main/java/ch/ethz/inf/vs/californium/coap/registries/OptionNumberRegistry.java	2013-02-22 18:10:09.000000000 +0100
+--- ./java/ch/ethz/inf/vs/californium/coap/registries/OptionNumberRegistry.java	2013-04-23 17:06:37.000000000 +0200
+***************
+*** 1,283 ****
+! /*******************************************************************************
+!  * Copyright (c) 2012, Institute for Pervasive Computing, ETH Zurich.
+!  * All rights reserved.
+!  * 
+!  * Redistribution and use in source and binary forms, with or without
+!  * modification, are permitted provided that the following conditions
+!  * are met:
+!  * 1. Redistributions of source code must retain the above copyright
+!  * notice, this list of conditions and the following disclaimer.
+!  * 2. Redistributions in binary form must reproduce the above copyright
+!  * notice, this list of conditions and the following disclaimer in the
+!  * documentation and/or other materials provided with the distribution.
+!  * 3. Neither the name of the Institute nor the names of its contributors
+!  * may be used to endorse or promote products derived from this software
+!  * without specific prior written permission.
+!  * 
+!  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS "AS IS" AND
+!  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+!  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+!  * ARE DISCLAIMED. IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+!  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+!  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+!  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+!  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+!  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+!  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+!  * SUCH DAMAGE.
+!  * 
+!  * This file is part of the Californium (Cf) CoAP framework.
+!  ******************************************************************************/
+! 
+! package ch.ethz.inf.vs.californium.coap.registries;
+! 
+! /**
+!  * This class describes the CoAP Option Number Registry as defined in
+!  * draft-ietf-core-coap-12, sections 12.2 and 5.10
+!  * 
+!  * @author Dominique Im Obersteg, Daniel Pauli and Francesco Corazza
+!  * @version 0.1
+!  * 
+!  */
+! public final class OptionNumberRegistry {
+! 	
+! 	// draft-ietf-core-coap-13
+! 	public static final int RESERVED_0 = 0;
+! 	public static final int IF_MATCH = 1;
+! 	public static final int URI_HOST = 3;
+! 	public static final int ETAG = 4;
+! 	public static final int IF_NONE_MATCH = 5;
+! 	public static final int URI_PORT = 7;
+! 	public static final int LOCATION_PATH = 8;
+! 	public static final int URI_PATH = 11;
+! 	public static final int CONTENT_TYPE = 12;
+! 	public static final int MAX_AGE = 14;
+! 	public static final int URI_QUERY = 15;
+! 	public static final int ACCEPT = 16;
+! 	public static final int LOCATION_QUERY = 20;
+! 	public static final int PROXY_URI = 35;
+! 	public static final int PROXY_SCHEME = 39;
+! 
+! 	// draft-ietf-core-observe-07
+! 	public static final int OBSERVE = 6;
+! 
+! 	// draft-ietf-core-block-08
+! 	public static final int BLOCK2 = 23;
+! 	public static final int BLOCK1 = 27;
+! 	public static final int SIZE = 28;
+! 
+! 	// derived constant
+! 	public static final int TOKEN_LEN = 8;
+! 	public static final int ETAG_LEN = 8;
+! 
+! 	/**
+! 	 * Returns the option format based on the option number.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number
+! 	 * @return The option format corresponding to the option number
+! 	 */
+! 	public static optionFormats getFormatByNr(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case CONTENT_TYPE:
+! 		case MAX_AGE:
+! 		case URI_PORT:
+! 		case OBSERVE:
+! 		case BLOCK2:
+! 		case BLOCK1:
+! 		case SIZE:
+! 		case IF_NONE_MATCH:
+! 		case ACCEPT:
+! 			return optionFormats.INTEGER;
+! 		case URI_HOST:
+! 		case URI_PATH:
+! 		case URI_QUERY:
+! 		case LOCATION_PATH:
+! 		case LOCATION_QUERY:
+! 		case PROXY_URI:
+! 		case PROXY_SCHEME:
+! 			return optionFormats.STRING;
+! 		case ETAG:
+! 		case IF_MATCH:
+! 			return optionFormats.OPAQUE;
+! 		default:
+! 			return optionFormats.UNKNOWN;
+! 		}
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is critical.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return True iff the option is critical
+! 	 */
+! 	public static boolean isCritical(int optionNumber) {
+! 		return (optionNumber & 1) > 1;
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is elective.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return True iff the option is elective
+! 	 */
+! 	public static boolean isElective(int optionNumber) {
+! 		return (optionNumber & 1) == 0;
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is unsafe.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is unsafe
+! 	 */
+! 	public static boolean isUnsafe(int optionNumber) {
+! 		// When bit 6 is 1, an option is Unsafe
+! 		return (optionNumber & 2) > 0;
+! 	}
+! 	
+! 	/**
+! 	 * Checks whether an option is safe.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is safe
+! 	 */
+! 	public static boolean isSafe(int optionNumber) {
+! 		return !isUnsafe(optionNumber);
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is not a cache-key.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is not a cache-key
+! 	 */
+! 	public static boolean isNoCacheKey(int optionNumber) {
+! 		/*
+! 		 * When an option is not Unsafe, it is not a Cache-Key (NoCacheKey) if
+! 		 * and only if bits 3-5 are all set to 1; all other bit combinations
+! 		 * mean that it indeed is a Cache-Key
+! 		 */
+! 		return (optionNumber & 0x1E) == 0x1C;
+! 	}
+! 	
+! 	/**
+! 	 * Checks whether an option is a cache-key.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is a cache-key
+! 	 */
+! 	public static boolean isCacheKey(int optionNumber) {
+! 		return !isNoCacheKey(optionNumber);
+! 	}
+! 
+! 	/**
+! 	 * Checks if is single value.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            the option number
+! 	 * @return true, if is single value
+! 	 */
+! 	public static boolean isSingleValue(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case CONTENT_TYPE:
+! 		case MAX_AGE:
+! 		case PROXY_URI:
+! 		case PROXY_SCHEME:
+! 		case URI_HOST:
+! 		case URI_PORT:
+! 		case IF_NONE_MATCH:
+! 			return true;
+! 		case ETAG:
+! 		case ACCEPT:
+! 		case IF_MATCH:
+! 		case URI_PATH:
+! 		case URI_QUERY:
+! 		case LOCATION_PATH:
+! 		case LOCATION_QUERY:
+! 		default:
+! 			return false;
+! 		}
+! 	}
+! 
+! 	/**
+! 	 * Checks if is uri option.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            the option number
+! 	 * @return true, if is uri option
+! 	 */
+! 	public static boolean isUriOption(int optionNumber) {
+! 		boolean result = optionNumber == URI_HOST || optionNumber == URI_PATH || optionNumber == URI_PORT || optionNumber == URI_QUERY;
+! 		return result;
+! 	}
+! 
+! 	/**
+! 	 * Returns a string representation of the option number.
+! 	 * 
+! 	 * @param code
+! 	 *            The option number to describe
+! 	 * @return A string describing the option number
+! 	 */
+! 	public static String toString(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case RESERVED_0:
+! 			return "Reserved (0)";
+! 		case CONTENT_TYPE:
+! 			return "Content-Type";
+! 		case MAX_AGE:
+! 			return "Max-Age";
+! 		case PROXY_URI:
+! 			return "Proxy-Uri";
+! 		case ETAG:
+! 			return "ETag";
+! 		case URI_HOST:
+! 			return "Uri-Host";
+! 		case LOCATION_PATH:
+! 			return "Location-Path";
+! 		case URI_PORT:
+! 			return "Uri-Port";
+! 		case LOCATION_QUERY:
+! 			return "Location-Query";
+! 		case URI_PATH:
+! 			return "Uri-Path";
+! 		case OBSERVE:
+! 			return "Observe";
+! 		case ACCEPT:
+! 			return "Accept";
+! 		case IF_MATCH:
+! 			return "If-Match";
+! 		case URI_QUERY:
+! 			return "Uri-Query";
+! 		case BLOCK2:
+! 			return "Block2";
+! 		case BLOCK1:
+! 			return "Block1";
+! 		case SIZE:
+! 			return "Size";
+! 		case IF_NONE_MATCH:
+! 			return "If-None-Match";
+! 		case PROXY_SCHEME:
+! 			return "Proxy-Scheme";
+! 		default:
+! 			return String.format("Unknown option [%d]", optionNumber);
+! 		}
+! 	}
+! 
+! 	private OptionNumberRegistry() {
+! 	}
+! 
+! 	/**
+! 	 * The Enum optionFormats.
+! 	 */
+! 	public static enum optionFormats {
+! 		INTEGER, STRING, OPAQUE, UNKNOWN
+! 	}
+! 
+! }
+--- 1,289 ----
+! /*******************************************************************************
+!  * Copyright (c) 2012, Institute for Pervasive Computing, ETH Zurich.
+!  * All rights reserved.
+!  * 
+!  * Redistribution and use in source and binary forms, with or without
+!  * modification, are permitted provided that the following conditions
+!  * are met:
+!  * 1. Redistributions of source code must retain the above copyright
+!  * notice, this list of conditions and the following disclaimer.
+!  * 2. Redistributions in binary form must reproduce the above copyright
+!  * notice, this list of conditions and the following disclaimer in the
+!  * documentation and/or other materials provided with the distribution.
+!  * 3. Neither the name of the Institute nor the names of its contributors
+!  * may be used to endorse or promote products derived from this software
+!  * without specific prior written permission.
+!  * 
+!  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS "AS IS" AND
+!  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+!  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+!  * ARE DISCLAIMED. IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+!  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+!  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+!  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+!  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+!  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+!  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+!  * SUCH DAMAGE.
+!  * 
+!  * This file is part of the Californium (Cf) CoAP framework.
+!  ******************************************************************************/
+! 
+! package ch.ethz.inf.vs.californium.coap.registries;
+! 
+! /**
+!  * This class describes the CoAP Option Number Registry as defined in
+!  * draft-ietf-core-coap-08, sections 5.4 and 5.10
+!  * 
+!  * @author Dominique Im Obersteg, Daniel Pauli and Francesco Corazza and Nicolas Mardegan
+!  * @version 0.1
+!  * 
+!  */
+! public final class OptionNumberRegistry {
+! 	
+! 	// draft-ietf-core-coap-08
+! 	public static final int RESERVED_0 = 0;
+! 	public static final int IF_MATCH = 13;
+! 	public static final int URI_HOST = 5;
+! 	public static final int ETAG = 4;
+! 	public static final int IF_NONE_MATCH = 21;
+! 	public static final int URI_PORT = 7;
+! 	public static final int LOCATION_PATH = 6;
+! 	public static final int URI_PATH = 9;
+! 	public static final int CONTENT_TYPE = 1;
+! 	public static final int MAX_AGE = 2;
+! 	public static final int URI_QUERY = 15;
+! 	public static final int ACCEPT = 12;
+! 	public static final int LOCATION_QUERY = 8;
+! 	public static final int PROXY_URI = 3;
+! 	// TOKEN option is in CoAP-08 draft
+! 	public static final int TOKEN = 11;
+! 	public static final int PROXY_SCHEME = 39;
+! 
+! 	// draft-ietf-core-observe-08
+! 	public static final int OBSERVE = 10;
+! 
+! 	// draft-ietf-core-block-08
+! 	public static final int BLOCK2 = 17;
+! 	public static final int BLOCK1 = 19;
+! 	public static final int SIZE = 28;
+! 
+! 	// derived constant
+! 	public static final int TOKEN_LEN = 8;
+! 	public static final int ETAG_LEN = 8;
+! 
+! 	/**
+! 	 * Returns the option format based on the option number.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number
+! 	 * @return The option format corresponding to the option number
+! 	 */
+! 	public static optionFormats getFormatByNr(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case CONTENT_TYPE:
+! 		case MAX_AGE:
+! 		case URI_PORT:
+! 		case OBSERVE:
+! 		case BLOCK2:
+! 		case BLOCK1:
+! 		case SIZE:
+! 		case IF_NONE_MATCH:
+! 		case ACCEPT:
+! 			return optionFormats.INTEGER;
+! 		case URI_HOST:
+! 		case URI_PATH:
+! 		case URI_QUERY:
+! 		case LOCATION_PATH:
+! 		case LOCATION_QUERY:
+! 		case PROXY_URI:
+! 		case PROXY_SCHEME:
+! 			return optionFormats.STRING;
+! 		case ETAG:
+! 		case IF_MATCH:
+! 		case TOKEN:
+! 			return optionFormats.OPAQUE;
+! 		default:
+! 			return optionFormats.UNKNOWN;
+! 		}
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is critical.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return True if the option is critical
+! 	 */
+! 	public static boolean isCritical(int optionNumber) {
+! 		return (optionNumber & 1) > 1;
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is elective.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return True if the option is elective
+! 	 */
+! 	public static boolean isElective(int optionNumber) {
+! 		return (optionNumber & 1) == 0;
+! 	}
+! 
+! 	/**
+! 	 * Checks whether an option is unsafe.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is unsafe
+! 	 */
+! 	/*public static boolean isUnsafe(int optionNumber) {
+! 		// When bit 6 is 1, an option is Unsafe
+! 		return (optionNumber & 2) > 0;
+! 	}*/
+! 	
+! 	/**
+! 	 * Checks whether an option is safe.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is safe
+! 	 */
+! 	/*public static boolean isSafe(int optionNumber) {
+! 		return !isUnsafe(optionNumber);
+! 	}*/
+! 
+! 	/**
+! 	 * Checks whether an option is not a cache-key.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is not a cache-key
+! 	 */
+! 	//public static boolean isNoCacheKey(int optionNumber) {
+! 		/*
+! 		 * When an option is not Unsafe, it is not a Cache-Key (NoCacheKey) if
+! 		 * and only if bits 3-5 are all set to 1; all other bit combinations
+! 		 * mean that it indeed is a Cache-Key
+! 		 */
+! 		//return (optionNumber & 0x1E) == 0x1C;
+! 	//}
+! 	
+! 	/**
+! 	 * Checks whether an option is a cache-key.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            The option number to check
+! 	 * @return <code>true</code> iff the option is a cache-key
+! 	 */
+! 	/*public static boolean isCacheKey(int optionNumber) {
+! 		return !isNoCacheKey(optionNumber);
+! 	}*/
+! 
+! 	/**
+! 	 * Checks if is single value.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            the option number
+! 	 * @return true, if is single value
+! 	 */
+! 	public static boolean isSingleValue(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case CONTENT_TYPE:
+! 		case MAX_AGE:
+! 		case PROXY_URI:
+! 		case PROXY_SCHEME:
+! 		case URI_HOST:
+! 		case URI_PORT:
+! 		case IF_NONE_MATCH:
+! 			return true;
+! 		case ETAG:
+! 		case ACCEPT:
+! 		case IF_MATCH:
+! 		case TOKEN:
+! 		case URI_PATH:
+! 		case URI_QUERY:
+! 		case LOCATION_PATH:
+! 		case LOCATION_QUERY:
+! 		default:
+! 			return false;
+! 		}
+! 	}
+! 
+! 	/**
+! 	 * Checks if is uri option.
+! 	 * 
+! 	 * @param optionNumber
+! 	 *            the option number
+! 	 * @return true, if is uri option
+! 	 */
+! 	public static boolean isUriOption(int optionNumber) {
+! 		boolean result = optionNumber == URI_HOST || optionNumber == URI_PATH || optionNumber == URI_PORT || optionNumber == URI_QUERY;
+! 		return result;
+! 	}
+! 
+! 	/**
+! 	 * Returns a string representation of the option number.
+! 	 * 
+! 	 * @param code
+! 	 *            The option number to describe
+! 	 * @return A string describing the option number
+! 	 */
+! 	public static String toString(int optionNumber) {
+! 		switch (optionNumber) {
+! 		case RESERVED_0:
+! 			return "Reserved (0)";
+! 		case CONTENT_TYPE:
+! 			return "Content-Type";
+! 		case MAX_AGE:
+! 			return "Max-Age";
+! 		case PROXY_URI:
+! 			return "Proxy-Uri";
+! 		case ETAG:
+! 			return "ETag";
+! 		case URI_HOST:
+! 			return "Uri-Host";
+! 		case LOCATION_PATH:
+! 			return "Location-Path";
+! 		case URI_PORT:
+! 			return "Uri-Port";
+! 		case LOCATION_QUERY:
+! 			return "Location-Query";
+! 		case URI_PATH:
+! 			return "Uri-Path";
+! 		case OBSERVE:
+! 			return "Observe";
+! 		case ACCEPT:
+! 			return "Accept";
+! 		case IF_MATCH:
+! 			return "If-Match";
+! 		case URI_QUERY:
+! 			return "Uri-Query";
+! 		case BLOCK2:
+! 			return "Block2";
+! 		case BLOCK1:
+! 			return "Block1";
+! 		case SIZE:
+! 			return "Size";
+! 		case IF_NONE_MATCH:
+! 			return "If-None-Match";
+! 		case PROXY_SCHEME:
+! 			return "Proxy-Scheme";
+! 		case TOKEN:
+! 			return "Token";
+! 		default:
+! 			return String.format("Unknown option [%d]", optionNumber);
+! 		}
+! 	}
+! 
+! 	private OptionNumberRegistry() {
+! 	}
+! 
+! 	/**
+! 	 * The Enum optionFormats.
+! 	 */
+! 	public static enum optionFormats {
+! 		INTEGER, STRING, OPAQUE, UNKNOWN
+! 	}
+! 
+! }
+Seulement dans .: patch.diff

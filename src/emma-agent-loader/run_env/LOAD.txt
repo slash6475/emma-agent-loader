@@ -1,0 +1,6 @@
+{
+	"NAME":"Lumos",
+	"PRE":"R#brightness<5",
+	"POST":["R#light+1",{"PRE":"R#light","POST":["R#brightness+1"],"TARGET":["[aaaa::0200:0002:0002:0202]:5683/R/brightness"]}],
+	"TARGET":["[aaaa::0200:0003:0003:0303]:5683/R/light","[aaaa::0200:0003:0003:0303]:5683/A/light"]
+}

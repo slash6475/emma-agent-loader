@@ -1,0 +1,63 @@
+<project name="JSON" default="jar" basedir=".">
+  <!-- Simply copy this build.xml and change the PROJECT_NAME to include a new lib -->
+  <property name="PROJECT_NAME" value="json"/>
+  
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+  <property name="dist" location="../dist"/>
+  <property name="javadoc" location="javadoc"/>
+  <property name="args" value="" />
+  
+  <!-- On Linux, classic jars could be found at
+  <property name="common-libs" location="/usr/share/maven-repo" />
+  <property name="common-libs2" location="/usr/share/java" />-->
+	
+	<!--<property name="lib" location="lib" />
+	<path id="common-classpath">
+		<fileset dir="${lib}" includes="**/*.jar"/>
+	</path>-->
+
+	<!-- Help target -->
+ 	<target name="help">
+		<echo>
+			The JSON Library
+		</echo>
+  </target>
+  
+  <!-- Init target -->
+  <target name="init">
+		<tstamp/>
+		<mkdir dir="${build}"/>
+  </target>
+  
+  <!-- Clean target -->
+  <target name="clean" description="Clean up the project">
+		<delete dir="${build}"/>
+		<delete file="${dist}/${PROJECT_NAME}.jar"/>
+  </target>
+  
+  <!-- Compile target, create .class files -->
+  <target name="compile" depends="init" description="Compile the source">
+		<!--<javac srcdir="${src}/" destdir="${build}" debug="on" includeantruntime="false" classpathref="common-classpath"/>-->
+		<javac srcdir="${src}/" destdir="${build}" debug="on" includeantruntime="false"/>
+  </target>
+  
+  <!-- Distribution target, create .jar files from .class files -->
+  <target name="jar" depends="compile" description="Generate the distribution">
+		<mkdir dir="${dist}"/>
+		<jar jarfile="${dist}/${PROJECT_NAME}.jar" basedir="${build}">
+			<manifest>
+        <attribute name="Class-Path" value="."/>
+      </manifest>
+		</jar>
+  </target>
+  
+  <target name="javadoc" depends="init">
+    <delete dir="${javadoc}" quiet="true"/>
+    <mkdir dir="${javadoc}/"/>
+    <javadoc destdir="${javadoc}">
+      <fileset dir="${src}" includes="**/*.java"/>
+    </javadoc>
+  </target>
+  
+</project>

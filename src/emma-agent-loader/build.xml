@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+
+<project name="EMMA Californium" default="run" basedir=".">
+
+  <!-- #################### Project Properties #################### -->
+  <property name="PROJECT_NAME" value="emma-agent-loader"/>
+  <!--<property name="MAIN_CLASS" value="ch.ethz.inf.vs.californium.examples.GETClient"/>-->
+  <property name="MAIN_CLASS" value="AgentLoader"/>
+  <property name="java" location="java"/>
+  <property name="build" location="build"/>
+  <property name="dist" location="dist"/>
+  <property name="args" value="coap://[aaaa::0200:0002:0002:0202]:5683" />
+  <property name="run_env" location="run_env" />
+  <!-- #################### ################## #################### -->
+	
+	
+	
+	<!-- #################### Library Management #################### -->
+  <!-- Libraries' path-->
+  <property name="lib" location="lib" />
+  <path id="lib-classpath">
+		<fileset dir="${lib}/dist" includes="*.jar"/>
+	</path>
+	
+	<manifestclasspath property="jar.classpath" jarfile="${dist}/${PROJECT_NAME}-${DSTAMP}.jar">
+      <classpath refid="lib-classpath" />
+  </manifestclasspath>
+	
+	<!-- Distribute libraries -->
+  <target name="jar_libs" depends="init" description="Distribute libraries">
+  	<ant antfile="build.xml" dir="lib/californium" target="jar" inheritAll="false"/>
+  	<ant antfile="build.xml" dir="lib/json" target="jar" inheritAll="false"/>
+  	<!-- Other libs that have to be compiled come here -->
+  </target>
+  
+  <!-- Clean libraries -->
+  <target name="clean_libs" depends="init" description="Clean libraries">
+  	<ant antfile="build.xml" dir="lib/californium" target="clean" inheritAll="false"/>
+  	<ant antfile="build.xml" dir="lib/json" target="clean" inheritAll="false"/>
+  	<!-- Other libs that have to be compiled come here -->
+  </target>
+  <!-- #################### ################## #################### -->
+
+
+
+	<!-- ####################  Project  Targets  #################### -->
+	<!-- Help target -->
+ 	<target name="help">
+		<echo>
+			The EMMA-Californium Application (emma-agent-loader)
+		</echo>
+  </target>
+  
+  <!-- Init target -->
+  <target name="init">
+		<tstamp/>
+		<mkdir dir="${build}"/>
+  </target>
+  
+  <!-- Clean target -->
+  <target name="clean" description="Clean up the project">
+		<delete dir="${build}"/>
+		<delete dir="${dist}"/>
+		<mkdir dir="${dist}"/>
+  </target>
+  
+  <!-- Compile target, create .class files -->
+  <target name="compile" depends="init" description="Compile the source">
+		<javac srcdir="${java}" destdir="${build}" debug="on" includeantruntime="false" classpathref="lib-classpath"/>
+  </target>
+  
+  <!-- Distribution target, create .jar files from .class files -->
+  <target name="jar" depends="compile" description="Generate the distribution of emma-agent-loader with its libs.">
+		<mkdir dir="${dist}"/>
+		<jar jarfile="${dist}/${PROJECT_NAME}-${DSTAMP}.jar" basedir="${build}">
+			<manifest>
+		    <attribute name="Main-Class" value="${MAIN_CLASS}"/>
+		    <attribute name="Class-Path" value="${jar.classpath}"/>
+		  </manifest>
+		</jar>
+  </target>
+  
+  <!-- Run target, launch the application -->
+  <target name="run" depends="jar" description="Run the application">
+		<java fork="yes" dir="${run_env}" jar="${dist}/${PROJECT_NAME}-${DSTAMP}.jar" maxmemory="512m">
+			<arg line="${args}"/>
+		</java>
+  </target>
+  
+  <target name="javadoc" depends="init">
+    <delete dir="${javadoc}" quiet="true"/>
+    <mkdir dir="${javadoc}/"/>
+    <javadoc destdir="${javadoc}" sourcepathref="lib-classpath">
+      <fileset dir="${java}/" includes="*.java"/>
+    </javadoc>
+  </target>
+  <!-- #################### ################## #################### -->
+
+</project>
