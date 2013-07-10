@@ -44,6 +44,7 @@ cp -r $THIS/dep/californium/extern/* $DEST/lib/californium/lib/
 
 # Librairies compilation
 mkdir $DEST/lib/dist
+mkdir $DEST/dist
 ant jar_libs -f $DEST/build.xml
  
 echo "Done."
