@@ -66,6 +66,7 @@
   
   <!-- Compile target, create .class files -->
   <target name="compile" depends="init" description="Compile the source">
+    <ant antfile="build.xml" target="jar_libs" inheritAll="false"/>
 		<javac srcdir="${java}" destdir="${build}" debug="on" includeantruntime="false" classpathref="lib-classpath"/>
   </target>
   
