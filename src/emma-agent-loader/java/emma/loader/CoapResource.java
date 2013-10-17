@@ -14,6 +14,7 @@ import ch.ethz.inf.vs.californium.coap.Response;
 import ch.ethz.inf.vs.californium.coap.Option;
 import ch.ethz.inf.vs.californium.coap.BlockOption;
 import ch.ethz.inf.vs.californium.coap.registries.OptionNumberRegistry;
+import ch.ethz.inf.vs.californium.coap.registries.CodeRegistry;
 
 public abstract class CoapResource {
 	
@@ -25,6 +26,11 @@ public abstract class CoapResource {
 	protected String name;
 	protected boolean valid;
 	private   Response response;
+	private   boolean stop = false;
+	
+	public void stop(){
+		stop = true;
+	}
 	
 	// Constructors
 	public CoapResource () {
@@ -116,24 +122,10 @@ public abstract class CoapResource {
 		byte[] block = this.getRaw();
 		byte[] payload;
 		boolean prediction = false;
-		boolean success = false;
-		
-		/* Create agent on node
-		try {
-			request = new POSTRequest();
-			//request.setURI(new URI(uriString + "/" + rootResource +"?name=" + this.name));
-			request.setURI(new URI(uriString + "/" + rootResource + "/" + this.name));
-			response = this.sendRequest(request);
-			if (response != null) response.prettyPrint();
-			success = true;
-		} catch (Exception e) {
-			System.out.println("[COAP RESOURCE SEND] Invalid URI.");
-			success = false;
-		}//*/
-		success = true;
+		stop = false;
 		
 		// Send agent in a block-wise style
-		if ((this.valid == true) && (success = true))
+		if ((this.valid == true) && (stop != true))
 		{
 			try {
 				uri = new URI(uriString + "/" + rootResource + "/" + this.name);
@@ -164,22 +156,23 @@ public abstract class CoapResource {
 					if (response != null) response.prettyPrint();
 		
 					// TODO: Get response codes, act differentlty according to errors
-					success = true;
+					if(response.getCode() != CodeRegistry.RESP_CONTENT)
+						stop = true;
 		
 					blockCounter++;
 				}//*/
 			} catch (Exception e) {
 				System.out.println("[COAP RESOURCE SEND] Invalid URI.");
-				success = false;
+				stop = true;
 			}
 		}
 		else
 		{
 			System.out.println("[COAP RESOURCE SEND] Resource is not valid.");
-			success = false;
+			stop = true;
 		}
 		
-		return success;
+		return !stop;
 	}
 	
 	private Response sendRequest(Request request)
