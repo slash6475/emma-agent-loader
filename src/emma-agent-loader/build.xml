@@ -22,7 +22,7 @@
 		<fileset dir="${lib}/dist" includes="*.jar"/>
 	</path>
 	
-	<manifestclasspath property="jar.classpath" jarfile="${dist}/${PROJECT_NAME}-${DSTAMP}.jar">
+	<manifestclasspath property="jar.classpath" jarfile="${dist}/${PROJECT_NAME}.jar">
       <classpath refid="lib-classpath" />
   </manifestclasspath>
 	
@@ -73,7 +73,8 @@
   <!-- Distribution target, create .jar files from .class files -->
   <target name="jar" depends="compile" description="Generate the distribution of emma-agent-loader with its libs.">
 		<mkdir dir="${dist}"/>
-		<jar jarfile="${dist}/${PROJECT_NAME}-${DSTAMP}.jar" basedir="${build}">
+		<jar jarfile="${dist}/${PROJECT_NAME}.jar" basedir="${build}">
+      <zipgroupfileset dir="lib/dist/" includes="**/*.jar" />
 			<manifest>
 		    <attribute name="Main-Class" value="${MAIN_CLASS}"/>
 		    <attribute name="Class-Path" value="${jar.classpath}"/>
@@ -83,7 +84,7 @@
   
   <!-- Run target, launch the application -->
   <target name="run" depends="jar" description="Run the application">
-		<java fork="yes" dir="${run_env}" jar="${dist}/${PROJECT_NAME}-${DSTAMP}.jar" maxmemory="512m">
+		<java fork="yes" dir="${run_env}" jar="${dist}/${PROJECT_NAME}.jar" maxmemory="512m">
 			<arg line="${args}"/>
 		</java>
   </target>
